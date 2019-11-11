@@ -1,0 +1,58 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Create an Application Load Balancer along with an alias record for its DNS Name in Route53'
+Resources:
+  ApplicationLoadBalancer:
+    DependsOn: LoadBalancerSecurityGroup
+    Properties:
+      ConnectionDrainingPolicy:
+        Enabled: true
+        Timeout: 120
+      ConnectionSettings:
+        IdleTimeout: 1800
+      CrossZone: 'true'
+      HealthCheck:
+        HealthyThreshold: '3'
+        Interval: '20'
+        Target: TCP:443
+        Timeout: '10'
+        UnhealthyThreshold: '2'
+      Listeners:
+        - InstancePort: '443'
+          InstanceProtocol: TCP
+          LoadBalancerPort: '443'
+          Protocol: TCP
+        - InstancePort: '3389'
+          InstanceProtocol: TCP
+          LoadBalancerPort: '3389'
+          Protocol: TCP
+      Scheme: internal
+      SecurityGroups:
+        - !Ref 'LoadBalancerSecurityGroup'
+      Subnets: ["subnet-xxxx","subnet-xxxx"]
+    Type: AWS::ElasticLoadBalancing::LoadBalancer
+
+  LoadBalancerSecurityGroup:
+    Properties:
+      GroupDescription: Enable Web Traffic Access
+      SecurityGroupIngress:
+        - CidrIp: '0.0.0.0/0'
+          FromPort: 443
+          IpProtocol: tcp
+          ToPort: 443
+        - CidrIp: 10.0.0.0/8
+          FromPort: 3389
+          IpProtocol: tcp
+          ToPort: 3389
+      VpcId: 'vpc-xxxx'
+    Type: AWS::EC2::SecurityGroup
+
+  psdMainRecordSet:
+    Properties:
+      AliasTarget:
+        DNSName: !GetAtt 'ApplicationLoadBalancer.DNSName'
+        HostedZoneId: 'Z1GM3OXH4ZPM65'
+      Name: 'xxxx'
+      HostedZoneId: 'xxxx'
+      Comment: PSD App Endpoint
+      Type: A
+    Type: AWS::Route53::RecordSet
