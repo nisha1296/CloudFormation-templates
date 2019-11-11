@@ -1,0 +1,32 @@
+{
+"Description": "Solution to handle circular dependency when trying to add circular dependency when adding ingress rule within the security group definition",
+    "Resources": {
+      "mysec" : {
+        "Type" : "AWS::EC2::SecurityGroup",
+        "Properties" : {
+          "GroupDescription" : "my sec"
+        }
+      },
+      "InboundRule": {
+      "Type": "AWS::EC2::SecurityGroupIngress",
+      "Properties":{
+         "IpProtocol": "tcp",
+         "FromPort": 0,
+         "ToPort": 65535,
+         "SourceSecurityGroupId": {
+           "Fn::GetAtt": [
+             "mysec",
+             "GroupId"
+            ]
+         },
+         "GroupId": {
+            "Fn::GetAtt": [
+              "mysec",
+              "GroupId"
+            ]
+         }
+      }
+    }
+
+    }
+}
