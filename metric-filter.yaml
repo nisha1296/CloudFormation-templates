@@ -1,0 +1,18 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: 'Creates a log group and a metric filter for it'
+Resources:
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: 'SxmNissanAvkKamereonSvcsEventHandlerLogGroup'
+      RetentionInDays: 7
+
+  EventHandlerQueueMessageMetricFilter:
+    Type: "AWS::Logs::MetricFilter"
+    Properties:
+      LogGroupName: !Ref LogGroup
+      FilterPattern: "{ $.messageCount.notification = * }"
+      MetricTransformations:
+        - MetricValue: $.messageCount.notification
+          MetricNamespace: LogException
+          MetricName: avk-event-handler-notification-msg-count
