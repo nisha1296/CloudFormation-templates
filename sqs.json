@@ -1,0 +1,29 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+
+  "Resources": {
+    "MySourceQueue": {
+      "Type": "AWS::SQS::Queue",
+      "Properties": {
+        "Tags": [{
+            "Key": "resource-tag-1",
+            "Value": "resource-tag-1"
+          },
+          {
+            "Key": "resource-tag-2",
+            "Value": "resource-tag-2"
+          }
+        ],
+        "RedrivePolicy": {
+          "deadLetterTargetArn": {
+            "Fn::GetAtt": ["MyDeadLetterQueue", "Arn"]
+          },
+          "maxReceiveCount": 5
+        }
+      }
+    },
+    "MyDeadLetterQueue": {
+      "Type": "AWS::SQS::Queue"
+    }
+  }
+}
