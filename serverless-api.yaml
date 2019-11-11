@@ -1,0 +1,69 @@
+AWSTemplateFormatVersion: 2010-09-09
+Transform: 'AWS::Serverless-2016-10-31'
+
+Globals:
+  Function:
+    Timeout: 60
+    Runtime: python3.7
+    MemorySize: 500
+    CodeUri: hv_init/
+    Environment:
+      Variables:
+        DEST_BUCKET: gdwn-production
+        DEST_PREFIX: xifin_test/stage
+        HV_ROLE_ARN: 'arn:aws:iam::xxxxxx:role/lambda_exec_MyS3Manip-1'
+        HV_SESSION_NAME: hv_transfer_session
+        HV_EXTERNAL_ID: 'xxxxxxx'
+        HV_DURATION_SECONDS: 18000
+        HV_BUCKET: hvdelivery
+        HV_PREFIX: point72/pickup
+        PAGE_SIZE: 5
+        MAX_ITEMS: 10
+        SSL_VERIFY: false
+Resources:
+  HvApi:
+    Type: 'AWS::Serverless::Api'
+    Properties:
+      StageName: stage
+      EndpointConfiguration: PRIVATE
+      DefinitionBody:
+        swagger: 2.0
+        info:
+          title: !Ref AWS::StackName
+        x-amazon-apigateway-policy:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: Deny
+              Principal: "*"
+              Action: 'execute-api:Invoke'
+              Condition:
+                StringNotEquals:
+                  'aws:SourceVpce': vpce-0b5837a94cffbaa15
+              Resource: "execute-api:/*/*/*"
+            - Effect: Allow
+              Principal: "*"
+              Action: 'execute-api:Invoke'
+              Resource: "execute-api:/*/*/*"
+        paths:
+          /engineer/{engineerId}/actions:
+            get:
+              parameters:
+              - name: "engineerId"
+                in: "path"
+                required: true
+                type: "string"
+              responses: {}
+              security:
+              - api_key: []
+              x-amazon-apigateway-integration:
+                uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:EngineerActionsApi/invocations'
+                requestParameters:
+                  integration.request.path.engineerId: "method.request.path.engineerId"
+                passthroughBehavior: "when_no_match"
+                httpMethod: "POST"
+                type: "aws_proxy"
+
+Outputs:
+  HvApi:
+    Description: Api Gateway
+    Value: !Ref HvApi
