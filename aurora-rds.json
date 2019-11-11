@@ -1,0 +1,221 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Creates Aurora RDS Cluster, DB instance, parameter group and subnet group",
+  "Parameters": {
+    "EnvName": {
+      "Description": "The name of environment",
+      "Type": "String",
+      "AllowedPattern": "[a-z0-9\\-]+",
+      "Default": "absds"
+    },
+    "DBUser": {
+      "Type": "String",
+      "Description": "User name for connecting to the database",
+      "Default": "absds"
+    },
+    "DBPassword": {
+      "Type": "String",
+      "Description": "The password for connecting to the database",
+      "NoEcho": "true",
+      "Default": "Nisha1$Nisha1$"
+    },
+    "DBInstanceClass": {
+      "Default": "db.r5.large",
+      "Type": "String",
+      "Description": "The DB class (server)"
+    },
+    "DMSInstanceClass": {
+      "Default": "None",
+      "Type": "String",
+      "Description": "DMS Instance class"
+    },
+    "DMSInstanceAllocatedStorage": {
+      "Default": "0",
+      "Type": "String",
+      "Description": "DMS Instance allocated storage"
+    },
+    "DMSRDSInstanceClass": {
+      "Default": "db.r5.large",
+      "Type": "String",
+      "Description": "DMS Instance class"
+    },
+    "EnvType": {
+      "Description": "Environment type",
+      "Default": "dev",
+      "Type": "String",
+      "AllowedValues": [
+        "dev",
+        "test",
+        "stage",
+        "deploy",
+        "prod"
+      ],
+      "ConstraintDescription": "must specify dev or test."
+    },
+    "DBReadReplicaInstanceClass": {
+      "Default": "None",
+      "Type": "String",
+      "Description": "The DB class (server) - 'None' if no Read Replica needed"
+    },
+    "DBBackupRetentionPeriod": {
+      "Type": "Number",
+      "Description": "The number of days the daily snapshots are to be kept for",
+      "MinValue": "1",
+      "Default": "1",
+      "MaxValue": "3"
+    },
+    "DBMaxConnections": {
+      "Type": "Number",
+      "Description": "The maximum number of concurrent database connections - 0 if max_connections is not overriden",
+      "Default": 10
+    },
+    "CiRevId": {
+      "Description": "git commit id (if available)",
+      "Type": "String",
+      "Default": "none"
+    },
+    "CiRevName": {
+      "Description": "git branch or tag (if available)",
+      "Type": "String",
+      "Default": "none"
+    },
+    "DBSnapshotIdentifier": {
+      "Default": "None",
+      "Description": "Optional, The database snapshot to restore. 'None' if no snapshot is to be used",
+      "Type": "String"
+    }
+  },
+  "Conditions": {
+    "DMS": {
+      "Fn::Not": [
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "DMSInstanceClass"
+            },
+            "None"
+          ]
+        }
+      ]
+    }
+  },
+  "Resources": {
+    "RDSDBParameterGroup": {
+        "Type": "AWS::RDS::DBParameterGroup",
+        "Properties": {
+          "Description": "DB Parameter Group",
+          "Family": "aurora5.6",
+          "Parameters": {
+            "wait_timeout" : "60",
+            "interactive_timeout" : "28800",
+            "lock_wait_timeout" : "5",
+            "innodb_lock_wait_timeout" : "5",
+            "tx_isolation": "read-committed",
+            "max_allowed_packet":"33554432",
+            "slow_query_log" : "1",
+            "log_output" : "FILE",
+            "long_query_time" : "10",
+            "log_queries_not_using_indexes" : "0",
+            "log_throttle_queries_not_using_indexes" : "0",
+            "init_connect": { "Fn::If": [ "DMS", "set foreign_key_checks = 0, unique_checks=0;", "" ] }
+          }
+        }
+      },
+
+    "RDSSubnetGroup": {
+      "Type": "AWS::RDS::DBSubnetGroup",
+      "Properties": {
+        "DBSubnetGroupDescription": "DB subnet grouping for accessing RDS in VPC",
+        "SubnetIds": ["subnet-xxxxxx", "subnet-xxxxxx"],
+        "Tags": [
+          {
+            "Key": "ENV_Name",
+            "Value": {
+              "Fn::Join": [
+                "-",
+                [
+                  "p2p",
+                  {
+                    "Ref": "EnvType"
+                  }
+                ]
+              ]
+            }
+          },
+          {
+            "Key": "Name",
+            "Value": {
+              "Ref": "AWS::StackName"
+            }
+          }
+        ]
+      }
+    },
+    "DMSRDSCluster": {
+      "Type": "AWS::RDS::DBCluster",
+      "DeletionPolicy": "Delete",
+      "Properties": {
+        "MasterUsername": { "Ref": "DBUser" },
+        "MasterUserPassword": { "Ref": "DBPassword" },
+        "Engine": "aurora",
+        "DatabaseName": "erfgrerfve",
+        "DBSubnetGroupName": {
+          "Ref": "RDSSubnetGroup"
+        },
+        "DBClusterParameterGroupName": {
+          "Ref": "RDSDBClusterParameterGroup"
+        },
+        "VpcSecurityGroupIds": [ "sg-xxxxx"],
+        "BackupRetentionPeriod": {
+          "Ref": "DBBackupRetentionPeriod"
+        },
+        "PreferredMaintenanceWindow": "tue:15:00-tue:16:00"
+      }
+    },
+    "RDSDBClusterParameterGroup": {
+  "Type": "AWS::RDS::DBClusterParameterGroup",
+  "Properties": {
+    "Parameters": {
+      "character_set_database": "utf8",
+      "character_set_server": "utf8",
+      "character_set_client": "utf8",
+      "character_set_connection": "utf8",
+      "character_set_results": "utf8",
+      "innodb_rollback_on_timeout" : "false"    },
+    "Family": "aurora5.6",
+    "Description": "DB Cluster Parameter Group"
+  }
+},
+
+    "DMSRDSInstance": {
+      "Type": "AWS::RDS::DBInstance",
+      "DependsOn": [ "DMSRDSCluster" ],
+      "Properties": {
+        "AutoMinorVersionUpgrade": true,
+        "DBSubnetGroupName": {
+          "Ref": "RDSSubnetGroup"
+        },
+        "DBParameterGroupName": {
+          "Ref": "RDSDBParameterGroup"
+        },
+        "Engine": "aurora",
+        "DBClusterIdentifier": {
+          "Ref": "DMSRDSCluster"
+        },
+        "PubliclyAccessible": "false",
+        "AvailabilityZone": {
+          "Fn::Select": [
+            "1",
+            {
+              "Fn::GetAZs": ""
+            }
+          ]
+        },
+        "DBInstanceClass": {
+          "Ref": "DMSRDSInstanceClass"
+        },
+        "PreferredMaintenanceWindow": "tue:15:00-tue:16:00"
+      }
+    }
+  }
+}
