@@ -1,0 +1,57 @@
+{
+
+  "Resources": {
+
+    "myLaunchConfig": {
+      "Type": "AWS::AutoScaling::LaunchConfiguration",
+      "Properties": {
+        "ImageId": "ami-00dc79254d0461090",
+        "BlockDeviceMappings": [{
+            "DeviceName": "/dev/xvda1",
+            "Ebs": {
+              "VolumeSize": 50,
+              "VolumeType": "gp2"
+            }
+
+
+          }
+
+        ],
+        "InstanceType": "t3.micro",
+        "EbsOptimized": "true"
+      }
+    },
+    "myASGroup": {
+      "UpdatePolicy": {
+        "AutoScalingRollingUpdate": {
+          "MinInstancesInService": "1",
+          "MaxBatchSize": "2",
+          "PauseTime": "PT15M",
+          "WaitOnResourceSignals": "true",
+          "SuspendProcesses": [
+            "HealthCheck",
+            "ReplaceUnhealthy",
+            "AZRebalance",
+            "AlarmNotification",
+            "ScheduledActions"
+          ]
+        }
+      },
+      "Type": "AWS::AutoScaling::AutoScalingGroup",
+      "Properties": {
+        "AvailabilityZones": {
+          "Fn::GetAZs": {
+            "Ref": "AWS::Region"
+          }
+        },
+        "LaunchConfigurationName": {
+          "Ref": "myLaunchConfig"
+        },
+        "MaxSize": "2",
+        "MinSize": "1"
+      }
+    }
+
+
+  }
+}
